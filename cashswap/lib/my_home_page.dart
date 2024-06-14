@@ -117,6 +117,21 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
+String formatExchangeRate(double rate, String currency) {
+  String symbol = currencySymbols[currency.toLowerCase()] ?? '';
+
+  // Format the rate to 2 decimal places for USD, EUR, GBP, JPY
+  if (currency.toLowerCase() != 'vnd') {
+    return '$symbol${rate.toStringAsFixed(2)}';
+  } else {
+    // For VND, format to remove trailing zeros
+    String rateString = rate.toStringAsFixed(5);
+    rateString = rateString.replaceAll(RegExp(r'0*$'), '').replaceAll(RegExp(r'\.$'), '');
+    return '$symbol$rateString';
+  }
+}
+
+
   @override
   Widget build(BuildContext context) {
     String baseCurrency = '';
@@ -199,10 +214,10 @@ class _MyHomePageState extends State<MyHomePage> {
                             mainAxisAlignment: MainAxisAlignment.center,
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                'Exchange Rate: $selectedExchangeRateValue', // Display raw exchange rate
-                                style: Theme.of(context).textTheme.bodyText1, // Adjust style as needed
-                              ),
+                        Text(
+  'Exchange Rate: ${selectedExchangeRateValue.toStringAsFixed(6)}', // Display raw exchange rate
+  style: Theme.of(context).textTheme.bodyText1, // Adjust style as needed
+),
                               Text(
                                 '$leftHandAmount $baseCurrency gets you ${formatExchangeRate(displayExchangeRateValue, quoteCurrency.toLowerCase())}',
                                 style: Theme.of(context).textTheme.bodyText2, // Adjust style as needed
