@@ -16,7 +16,6 @@ class _MyHomePageState extends State<MyHomePage> {
   late List<Map<String, dynamic>> items = [];
   List<String> currencyPairs = [];
   String selectedCurrencyPair = ''; // Default selected currency pair
-  double selectedExchangeRateValue = 0.0; // Default selected exchange rate value
 
   // Dictionary mapping currency codes to their symbols
   final Map<String, String> currencySymbols = {
@@ -87,13 +86,13 @@ class _MyHomePageState extends State<MyHomePage> {
       List<dynamic> exchangeRates = item['exchangeRates'];
       for (var rate in exchangeRates) {
         pairs.add('${rate['base_currency_name']}/${rate['quote_currency_name']}');
-               pairs.add('${rate['quote_currency_name']}/${rate['base_currency_name']}');
+        pairs.add('${rate['quote_currency_name']}/${rate['base_currency_name']}');
       }
     }
     currencyPairs = pairs.toList();
     selectedCurrencyPair = currencyPairs.isNotEmpty ? currencyPairs[0] : '';
 
-    // Set default exchange rate value based on selected pair
+    // Calculate and store exchange rates for all items
     updateSelectedExchangeRate();
   }
 
@@ -113,14 +112,14 @@ class _MyHomePageState extends State<MyHomePage> {
             // Calculate amount after deducting commission
             double amountAfterCommission = calculateAmountAfterCommission(baseRateValue, commissionPercentage, commissionFlat);
 
-            if (mounted) {
-              setState(() {
-                selectedExchangeRateValue = amountAfterCommission;
-              });
-            }
-            return;
+            // Store calculated value in the item
+            item['selectedExchangeRateValue'] = amountAfterCommission;
           }
         }
+      }
+      // Update the state to reflect changes
+      if (mounted) {
+        setState(() {});
       }
     }
   }
@@ -152,17 +151,12 @@ class _MyHomePageState extends State<MyHomePage> {
   Widget build(BuildContext context) {
     String baseCurrency = '';
     String quoteCurrency = '';
-    double displayExchangeRateValue = selectedExchangeRateValue;
+    double displayExchangeRateValue = 0.0;
 
     // Extract base and quote currencies from selected pair
     if (selectedCurrencyPair.isNotEmpty) {
       baseCurrency = selectedCurrencyPair.split('/')[0].trim().toUpperCase();
       quoteCurrency = selectedCurrencyPair.split('/')[1].trim().toUpperCase();
-
-      // Adjust the display exchange rate value if base currency is VND
-      if (baseCurrency == 'VND') {
-        displayExchangeRateValue = selectedExchangeRateValue * 100000;
-      }
     }
 
     // Determine the amount to display on the left-hand side
@@ -203,21 +197,15 @@ class _MyHomePageState extends State<MyHomePage> {
           itemBuilder: (context, index) {
             Map<String, dynamic> item = items[index];
             String deliveryTime = 'Unknown';
+            double selectedRate = 0.0;
 
-            // Find the exchange rate for the selected currency pair
-            double selectedRate = 0.0; // Default value if not found
-            List<dynamic> exchangeRates = item['exchangeRates'];
-            for (var rate in exchangeRates) {
-              if (rate['base_currency_name'].toLowerCase() == baseCurrency &&
-                  rate['quote_currency_name'].toLowerCase() == quoteCurrency) {
-                double baseRateValue = rate['baseRateValue'].toDouble();
-                double commissionPercentage = rate['commissionPercentage'].toDouble();
-                double commissionFlat = rate['commissionFlat'].toDouble();
+            if (item.containsKey('selectedExchangeRateValue')) {
+              selectedRate = item['selectedExchangeRateValue'];
+            }
 
-                // Calculate amount after deducting commission
-                selectedRate = baseRateValue * (1 - commissionPercentage / 100) - commissionFlat;
-                break; // Exit loop once found
-              }
+            displayExchangeRateValue = selectedRate;
+            if (baseCurrency == 'VND') {
+              displayExchangeRateValue *= 100000;
             }
 
             return Card(
@@ -250,7 +238,7 @@ class _MyHomePageState extends State<MyHomePage> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Exchange Rate: ${selectedExchangeRateValue.toStringAsFixed(6)}', // Display raw exchange rate
+                                'Exchange Rate: ${selectedRate.toStringAsFixed(10)}', // Display raw exchange rate
                                 style: Theme.of(context).textTheme.bodyText1, // Adjust style as needed
                               ),
                               Text(
@@ -269,7 +257,7 @@ class _MyHomePageState extends State<MyHomePage> {
                           ),
                         ),
                         ElevatedButton(
-                          onPressed: () {},
+                                       onPressed: () {},
                           child: const Text('Button'),
                         ),
                       ],
@@ -307,4 +295,3 @@ void main() {
     home: MyHomePage(title: 'Exchange Rates'),
   ));
 }
-
