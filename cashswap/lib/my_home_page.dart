@@ -34,7 +34,7 @@ class _MyHomePageState extends State<MyHomePage> {
   void initState() {
     super.initState();
     if (widget.mockData != null) {
-      // Use stub data if provided
+      // Use mock data if provided
       items = widget.mockData!;
       processItems();
     } else {
@@ -44,7 +44,7 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   Future<void> fetchData() async {
-    final url = Uri.parse('http://10.0.2.2:3000/exchanges'); // Use 10.0.2.2 for Android emulator
+    final url = Uri.parse('http://10.0.2.2:3000/exchanges'); // Example API endpoint
 
     try {
       final response = await http.get(url);
@@ -150,6 +150,12 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
+  double calculateDisplayExchangeRate(double baseAmount, double baseRate, double commissionPercentage, double commissionFlat) {
+    double amountAfterCommission = baseAmount * baseRate;
+    amountAfterCommission = calculateAmountAfterCommission(amountAfterCommission, commissionPercentage, commissionFlat);
+    return amountAfterCommission;
+  }
+
   @override
   Widget build(BuildContext context) {
     String baseCurrency = '';
@@ -162,8 +168,27 @@ class _MyHomePageState extends State<MyHomePage> {
       quoteCurrency = selectedCurrencyPair.split('/')[1].trim().toUpperCase();
     }
 
-    // Determine the amount to display on the left-hand side
-    String leftHandAmount = amountController.text.isEmpty ? (baseCurrency == 'VND' ? '100,000' : '1') : amountController.text;
+    // Parse the amount entered by the user
+    double baseAmount = amountController.text.isEmpty ? (baseCurrency == 'VND' ? 100000 : 1) : double.parse(amountController.text.replaceAll(',', ''));
+
+    // Calculate the display exchange rate value
+    if (selectedCurrencyPair.isNotEmpty) {
+      String baseCurrency = selectedCurrencyPair.split('/')[0].trim().toLowerCase();
+      String quoteCurrency = selectedCurrencyPair.split('/')[1].trim().toLowerCase();
+
+      for (var item in items) {
+        List<dynamic> exchangeRates = item['exchangeRates'];
+        for (var rate in exchangeRates) {
+          if (rate['base_currency_name'] == baseCurrency && rate['quote_currency_name'] == quoteCurrency) {
+            double baseRateValue = rate['baseRateValue'].toDouble();
+            double commissionPercentage = rate['commissionPercentage'].toDouble();
+            double commissionFlat = rate['commissionFlat'].toDouble();
+
+            displayExchangeRateValue = calculateDisplayExchangeRate(baseAmount, baseRateValue, commissionPercentage, commissionFlat);
+          }
+        }
+      }
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -196,14 +221,16 @@ class _MyHomePageState extends State<MyHomePage> {
               controller: amountController,
               keyboardType: TextInputType.numberWithOptions(decimal: true), // Allows decimal input
               inputFormatters: <TextInputFormatter>[
-                FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')), // Allow only numbers and dot
+                FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')), // Allow only numbers, dot, and comma
               ],
               decoration: InputDecoration(
                 hintText: 'Enter amount',
               ),
               onChanged: (value) {
                 setState(() {
-                  leftHandAmount = value;
+                  // Trigger recalculation when the amount changes
+                  // (although the calculation should ideally be in a separate function)
+                  displayExchangeRateValue = calculateDisplayExchangeRate(baseAmount, 1.0, 0.0, 0.0);
                 });
               },
             ),
@@ -226,10 +253,8 @@ class _MyHomePageState extends State<MyHomePage> {
                     selectedRate = item['selectedExchangeRateValue'];
                   }
 
-                  displayExchangeRateValue = selectedRate;
-                  if (baseCurrency == 'VND') {
-                    displayExchangeRateValue *= 100000;
-                  }
+                  // Calculate the display exchange rate value for each item
+                  double displayRateForItem = calculateDisplayExchangeRate(baseAmount, selectedRate, 0.0, 0.0);
 
                   return Card(
                     elevation: 4,
@@ -265,7 +290,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                       style: Theme.of(context).textTheme.bodyText1, // Adjust style as needed
                                     ),
                                     Text(
-                                      '$leftHandAmount $baseCurrency gets you ${formatExchangeRate(displayExchangeRateValue, quoteCurrency.toLowerCase())}',
+                                      '$baseAmount $baseCurrency gets you ${formatExchangeRate(displayRateForItem, quoteCurrency.toLowerCase())}',
                                       style: Theme.of(context).textTheme.bodyText2, // Adjust style as needed
                                     ),
                                     Text(
@@ -290,7 +315,7 @@ class _MyHomePageState extends State<MyHomePage> {
                             color: Colors.deepPurple.withOpacity(0.1),
                             padding: const EdgeInsets.all(8.0),
                             child: Text(
-                                                        'Est. delivery time: $deliveryTime',
+                              'Est. delivery time: $deliveryTime',
                               style: Theme.of(context).textTheme.bodyText2?.copyWith(
                                 color: Colors.deepPurple,
                               ),
@@ -311,8 +336,14 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 }
 
-double calculateAmountAfterCommission(double baseRateValue, double commissionPercentage, double commissionFlat) {
-  return baseRateValue * (1 - commissionPercentage / 100) - commissionFlat;
+double calculateAmountAfterCommission(double baseAmount, double commissionPercentage, double commissionFlat) {
+  return baseAmount * (1 - commissionPercentage / 100) - commissionFlat;
+}
+
+double calculateDisplayExchangeRate(double baseAmount, double baseRate, double commissionPercentage, double commissionFlat) {
+  double amountAfterCommission = baseAmount * baseRate;
+  amountAfterCommission = calculateAmountAfterCommission(amountAfterCommission, commissionPercentage, commissionFlat);
+  return amountAfterCommission;
 }
 
 void main() {
@@ -321,3 +352,4 @@ void main() {
     home: MyHomePage(title: 'Exchange Rates'),
   ));
 }
+
