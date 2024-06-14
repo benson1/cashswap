@@ -1,30 +1,49 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
+import 'dart:convert';
+import 'package:cashswap/my_home_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-import 'package:cashswap/main.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart'; // Import for MockClient
+import 'package:cashswap/main.dart'; // Adjust import to match your project structure
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  testWidgets('Verify exchange rate update', (WidgetTester tester) async {
+    // Define mock data for testing
+    final List<Map<String, dynamic>> mockData = [
+      {
+        'exchangeRates': [
+          {
+            'base_currency_name': 'usd',
+            'quote_currency_name': 'vnd',
+            'baseRateValue': 0.002,
+            'commissionPercentage': 10.0,
+            'commissionFlat': 0.0,
+          },
+        ],
+        'ImageURL': 'https://example.com/image.png',
+        'userName': 'Test User',
+      },
+    ];
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    // Create a mock HTTP client to return the mock data
+    final client = MockClient((request) async {
+      return http.Response(jsonEncode(mockData), 200);
+    });
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+    // Build the widget with MaterialApp
+    await tester.pumpWidget(MaterialApp(
+      home: MyHomePage(
+        title: 'Exchange Rates',
+        mockData: mockData, // Pass mockData to the widget
+      ),
+    ));
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    // Wait for the data to be loaded (you might need to adjust the delay if necessary)
+    await tester.pump(Duration(seconds: 1));
+
+    // Verify that the exchange rate value is updated correctly
+    expect(find.text('Exchange Rate: 0.001800'), findsOneWidget);
+
+    // Optionally, you can further test interactions or other widget behaviors
   });
 }

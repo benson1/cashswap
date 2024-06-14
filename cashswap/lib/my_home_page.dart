@@ -3,9 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
 class MyHomePage extends StatefulWidget {
-  const MyHomePage({Key? key, required this.title}) : super(key: key);
+  const MyHomePage({Key? key, required this.title, this.mockData}) : super(key: key);
 
   final String title;
+  final List<Map<String, dynamic>>? mockData;
 
   @override
   _MyHomePageState createState() => _MyHomePageState();
@@ -30,7 +31,14 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   void initState() {
     super.initState();
-    fetchData();
+    if (widget.mockData != null) {
+      // Use stub data if provided
+      items = widget.mockData!;
+      processItems();
+    } else {
+      // Fetch data from API
+      fetchData();
+    }
   }
 
   Future<void> fetchData() async {
@@ -44,21 +52,7 @@ class _MyHomePageState extends State<MyHomePage> {
         if (mounted) {
           setState(() {
             items = data.cast<Map<String, dynamic>>();
-
-            // Extract unique currency pairs from items
-            Set<String> pairs = Set();
-            for (var item in items) {
-              List<dynamic> exchangeRates = item['exchangeRates'];
-              for (var rate in exchangeRates) {
-                pairs.add('${rate['base_currency_name']}/${rate['quote_currency_name']}');
-                pairs.add('${rate['quote_currency_name']}/${rate['base_currency_name']}');
-              }
-            }
-            currencyPairs = pairs.toList();
-            selectedCurrencyPair = currencyPairs.isNotEmpty ? currencyPairs[0] : '';
-
-            // Set default exchange rate value based on selected pair
-            updateSelectedExchangeRate();
+            processItems();
           });
         }
       } else {
@@ -86,6 +80,23 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
+  void processItems() {
+    // Extract unique currency pairs from items
+    Set<String> pairs = Set();
+    for (var item in items) {
+      List<dynamic> exchangeRates = item['exchangeRates'];
+      for (var rate in exchangeRates) {
+        pairs.add('${rate['base_currency_name']}/${rate['quote_currency_name']}');
+               pairs.add('${rate['quote_currency_name']}/${rate['base_currency_name']}');
+      }
+    }
+    currencyPairs = pairs.toList();
+    selectedCurrencyPair = currencyPairs.isNotEmpty ? currencyPairs[0] : '';
+
+    // Set default exchange rate value based on selected pair
+    updateSelectedExchangeRate();
+  }
+
   void updateSelectedExchangeRate() {
     if (selectedCurrencyPair.isNotEmpty) {
       String baseCurrency = selectedCurrencyPair.split('/')[0].trim().toLowerCase();
@@ -96,9 +107,15 @@ class _MyHomePageState extends State<MyHomePage> {
         for (var rate in exchangeRates) {
           if (rate['base_currency_name'] == baseCurrency && rate['quote_currency_name'] == quoteCurrency) {
             double baseRateValue = rate['baseRateValue'].toDouble();
+            double commissionPercentage = rate['commissionPercentage'].toDouble();
+            double commissionFlat = rate['commissionFlat'].toDouble();
+
+            // Calculate amount after deducting commission
+            double amountAfterCommission = calculateAmountAfterCommission(baseRateValue, commissionPercentage, commissionFlat);
+
             if (mounted) {
               setState(() {
-                selectedExchangeRateValue = baseRateValue;
+                selectedExchangeRateValue = amountAfterCommission;
               });
             }
             return;
@@ -117,20 +134,19 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
-String formatExchangeRate(double rate, String currency) {
-  String symbol = currencySymbols[currency.toLowerCase()] ?? '';
+  String formatExchangeRate(double rate, String currency) {
+    String symbol = currencySymbols[currency.toLowerCase()] ?? '';
 
-  // Format the rate to 2 decimal places for USD, EUR, GBP, JPY
-  if (currency.toLowerCase() != 'vnd') {
-    return '$symbol${rate.toStringAsFixed(2)}';
-  } else {
-    // For VND, format to remove trailing zeros
-    String rateString = rate.toStringAsFixed(5);
-    rateString = rateString.replaceAll(RegExp(r'0*$'), '').replaceAll(RegExp(r'\.$'), '');
-    return '$symbol$rateString';
+    // Format the rate to 2 decimal places for USD, EUR, GBP, JPY
+    if (currency.toLowerCase() != 'vnd') {
+      return '$symbol${rate.toStringAsFixed(2)}';
+    } else {
+      // For VND, format to remove trailing zeros
+      String rateString = rate.toStringAsFixed(5);
+      rateString = rateString.replaceAll(RegExp(r'0*$'), '').replaceAll(RegExp(r'\.$'), '');
+      return '$symbol$rateString';
+    }
   }
-}
-
 
   @override
   Widget build(BuildContext context) {
@@ -188,6 +204,22 @@ String formatExchangeRate(double rate, String currency) {
             Map<String, dynamic> item = items[index];
             String deliveryTime = 'Unknown';
 
+            // Find the exchange rate for the selected currency pair
+            double selectedRate = 0.0; // Default value if not found
+            List<dynamic> exchangeRates = item['exchangeRates'];
+            for (var rate in exchangeRates) {
+              if (rate['base_currency_name'].toLowerCase() == baseCurrency &&
+                  rate['quote_currency_name'].toLowerCase() == quoteCurrency) {
+                double baseRateValue = rate['baseRateValue'].toDouble();
+                double commissionPercentage = rate['commissionPercentage'].toDouble();
+                double commissionFlat = rate['commissionFlat'].toDouble();
+
+                // Calculate amount after deducting commission
+                selectedRate = baseRateValue * (1 - commissionPercentage / 100) - commissionFlat;
+                break; // Exit loop once found
+              }
+            }
+
             return Card(
               elevation: 4,
               shape: RoundedRectangleBorder(
@@ -207,6 +239,9 @@ String formatExchangeRate(double rate, String currency) {
                           item['ImageURL'],
                           height: 50,
                           width: 50,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Icon(Icons.broken_image, size: 50); // Fallback image
+                          },
                         ),
                         const SizedBox(width: 10),
                         Expanded(
@@ -214,10 +249,10 @@ String formatExchangeRate(double rate, String currency) {
                             mainAxisAlignment: MainAxisAlignment.center,
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                        Text(
-  'Exchange Rate: ${selectedExchangeRateValue.toStringAsFixed(6)}', // Display raw exchange rate
-  style: Theme.of(context).textTheme.bodyText1, // Adjust style as needed
-),
+                              Text(
+                                'Exchange Rate: ${selectedExchangeRateValue.toStringAsFixed(6)}', // Display raw exchange rate
+                                style: Theme.of(context).textTheme.bodyText1, // Adjust style as needed
+                              ),
                               Text(
                                 '$leftHandAmount $baseCurrency gets you ${formatExchangeRate(displayExchangeRateValue, quoteCurrency.toLowerCase())}',
                                 style: Theme.of(context).textTheme.bodyText2, // Adjust style as needed
@@ -261,3 +296,15 @@ String formatExchangeRate(double rate, String currency) {
     );
   }
 }
+
+double calculateAmountAfterCommission(double baseRateValue, double commissionPercentage, double commissionFlat) {
+  return baseRateValue * (1 - commissionPercentage / 100) - commissionFlat;
+}
+
+void main() {
+  runApp(const MaterialApp(
+    title: 'Flutter Demo',
+    home: MyHomePage(title: 'Exchange Rates'),
+  ));
+}
+
