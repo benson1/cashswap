@@ -17,6 +17,16 @@ class _MyHomePageState extends State<MyHomePage> {
   String selectedCurrencyPair = ''; // Default selected currency pair
   double selectedExchangeRateValue = 0.0; // Default selected exchange rate value
 
+  // Dictionary mapping currency codes to their symbols
+  final Map<String, String> currencySymbols = {
+    'usd': '\$', // Dollar
+    'eur': '€', // Euro
+    'gbp': '£', // British Pound
+    'jpy': '¥', // Japanese Yen
+    'vnd': '₫', // Vietnamese Dong
+    // Add more currency symbols as needed
+  };
+
   @override
   void initState() {
     super.initState();
@@ -31,78 +41,102 @@ class _MyHomePageState extends State<MyHomePage> {
 
       if (response.statusCode == 200) {
         List<dynamic> data = jsonDecode(response.body);
-        setState(() {
-          items = data.cast<Map<String, dynamic>>();
+        if (mounted) {
+          setState(() {
+            items = data.cast<Map<String, dynamic>>();
 
-          // Extract unique currency pairs from items
-          Set<String> pairs = Set();
-          for (var item in items) {
-            List<dynamic> exchangeRates = item['exchangeRates'];
-            for (var rate in exchangeRates) {
-              pairs.add('${rate['base_currency_name']}/${rate['quote_currency_name']}');
-              pairs.add('${rate['quote_currency_name']}/${rate['base_currency_name']}');
+            // Extract unique currency pairs from items
+            Set<String> pairs = Set();
+            for (var item in items) {
+              List<dynamic> exchangeRates = item['exchangeRates'];
+              for (var rate in exchangeRates) {
+                pairs.add('${rate['base_currency_name']}/${rate['quote_currency_name']}');
+                pairs.add('${rate['quote_currency_name']}/${rate['base_currency_name']}');
+              }
             }
-          }
-          currencyPairs = pairs.toList();
-          selectedCurrencyPair = currencyPairs.isNotEmpty ? currencyPairs[0] : '';
+            currencyPairs = pairs.toList();
+            selectedCurrencyPair = currencyPairs.isNotEmpty ? currencyPairs[0] : '';
 
-          // Set default exchange rate value based on selected pair
-          updateSelectedExchangeRate();
-        });
+            // Set default exchange rate value based on selected pair
+            updateSelectedExchangeRate();
+          });
+        }
       } else {
         throw Exception('Failed to load data: ${response.statusCode}');
       }
     } catch (e) {
       print('Error fetching data: $e');
-      // Handle error appropriately, e.g., show an error message to the user
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: Text('Error'),
-          content: Text('Failed to fetch data. Please check your connection.'),
-          actions: <Widget>[
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              child: Text('OK'),
-            ),
-          ],
-        ),
-      );
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: Text('Error'),
+            content: Text('Failed to fetch data. Please check your connection.'),
+            actions: <Widget>[
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+                child: Text('OK'),
+              ),
+            ],
+          ),
+        );
+      }
     }
   }
 
-void updateSelectedExchangeRate() {
-  if (selectedCurrencyPair.isNotEmpty) {
-    String baseCurrency = selectedCurrencyPair.split('/')[0].trim().toLowerCase();
-    String quoteCurrency = selectedCurrencyPair.split('/')[1].trim().toLowerCase();
+  void updateSelectedExchangeRate() {
+    if (selectedCurrencyPair.isNotEmpty) {
+      String baseCurrency = selectedCurrencyPair.split('/')[0].trim().toLowerCase();
+      String quoteCurrency = selectedCurrencyPair.split('/')[1].trim().toLowerCase();
 
-    for (var item in items) {
-      List<dynamic> exchangeRates = item['exchangeRates'];
-      for (var rate in exchangeRates) {
-        if ((rate['base_currency_name'] == baseCurrency && rate['quote_currency_name'] == quoteCurrency)) {
-          setState(() {
-            selectedExchangeRateValue = rate['baseRateValue'].toDouble();
-          });
-          return;
+      for (var item in items) {
+        List<dynamic> exchangeRates = item['exchangeRates'];
+        for (var rate in exchangeRates) {
+          if (rate['base_currency_name'] == baseCurrency && rate['quote_currency_name'] == quoteCurrency) {
+            double baseRateValue = rate['baseRateValue'].toDouble();
+            if (mounted) {
+              setState(() {
+                selectedExchangeRateValue = baseRateValue;
+              });
+            }
+            return;
+          }
         }
       }
     }
   }
-}
 
-
-void filterItems(String selectedPair) {
-  setState(() {
-    selectedCurrencyPair = selectedPair;
-    updateSelectedExchangeRate();
-  });
-}
-
+  void filterItems(String selectedPair) {
+    if (mounted) {
+      setState(() {
+        selectedCurrencyPair = selectedPair;
+        updateSelectedExchangeRate();
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    String baseCurrency = '';
+    String quoteCurrency = '';
+    double displayExchangeRateValue = selectedExchangeRateValue;
+
+    // Extract base and quote currencies from selected pair
+    if (selectedCurrencyPair.isNotEmpty) {
+      baseCurrency = selectedCurrencyPair.split('/')[0].trim().toUpperCase();
+      quoteCurrency = selectedCurrencyPair.split('/')[1].trim().toUpperCase();
+
+      // Adjust the display exchange rate value if base currency is VND
+      if (baseCurrency == 'VND') {
+        displayExchangeRateValue = selectedExchangeRateValue * 100000;
+      }
+    }
+
+    // Determine the amount to display on the left-hand side
+    String leftHandAmount = baseCurrency == 'VND' ? '100,000' : '1';
+
     return Scaffold(
       appBar: AppBar(
         title: Row(
@@ -139,10 +173,6 @@ void filterItems(String selectedPair) {
             Map<String, dynamic> item = items[index];
             String deliveryTime = 'Unknown';
 
-            // Logic to extract delivery time or other data from item
-            // Example:
-            // deliveryTime = item['delivery_time'];
-
             return Card(
               elevation: 4,
               shape: RoundedRectangleBorder(
@@ -170,15 +200,15 @@ void filterItems(String selectedPair) {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Exchange Rate: ${selectedExchangeRateValue.toStringAsFixed(5)}', // Display exchange rate
+                                'Exchange Rate: $selectedExchangeRateValue', // Display raw exchange rate
                                 style: Theme.of(context).textTheme.bodyText1, // Adjust style as needed
                               ),
                               Text(
-                                'Title ${index + 1}',
-                                style: Theme.of(context).textTheme.bodyText2,
+                                '$leftHandAmount $baseCurrency gets you ${formatExchangeRate(displayExchangeRateValue, quoteCurrency.toLowerCase())}',
+                                style: Theme.of(context).textTheme.bodyText2, // Adjust style as needed
                               ),
                               Text(
-                                'Username ${item['userName']}',
+                                'Username: ${item['userName']}',
                                 style: Theme.of(context).textTheme.bodyText2,
                               ),
                               Text(
