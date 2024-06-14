@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 
 class MyHomePage extends StatefulWidget {
@@ -26,6 +27,8 @@ class _MyHomePageState extends State<MyHomePage> {
     'vnd': '₫', // Vietnamese Dong
     // Add more currency symbols as needed
   };
+
+  TextEditingController amountController = TextEditingController();
 
   @override
   void initState() {
@@ -160,7 +163,7 @@ class _MyHomePageState extends State<MyHomePage> {
     }
 
     // Determine the amount to display on the left-hand side
-    String leftHandAmount = baseCurrency == 'VND' ? '100,000' : '1';
+    String leftHandAmount = amountController.text.isEmpty ? (baseCurrency == 'VND' ? '100,000' : '1') : amountController.text;
 
     return Scaffold(
       appBar: AppBar(
@@ -186,99 +189,122 @@ class _MyHomePageState extends State<MyHomePage> {
       ),
       body: Padding(
         padding: const EdgeInsets.all(8.0),
-        child: GridView.builder(
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 1, // One item per row
-            childAspectRatio: 2, // Adjust the height of the grid items
-            mainAxisSpacing: 8.0,
-            crossAxisSpacing: 8.0,
-          ),
-          itemCount: items.length,
-          itemBuilder: (context, index) {
-            Map<String, dynamic> item = items[index];
-            String deliveryTime = 'Unknown';
-            double selectedRate = 0.0;
-
-            if (item.containsKey('selectedExchangeRateValue')) {
-              selectedRate = item['selectedExchangeRateValue'];
-            }
-
-            displayExchangeRateValue = selectedRate;
-            if (baseCurrency == 'VND') {
-              displayExchangeRateValue *= 100000;
-            }
-
-            return Card(
-              elevation: 4,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            TextField(
+              controller: amountController,
+              keyboardType: TextInputType.numberWithOptions(decimal: true), // Allows decimal input
+              inputFormatters: <TextInputFormatter>[
+                FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')), // Allow only numbers and dot
+              ],
+              decoration: InputDecoration(
+                hintText: 'Enter amount',
               ),
-              child: Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.start,
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        Image.network(
-                          item['ImageURL'],
-                          height: 50,
-                          width: 50,
-                          errorBuilder: (context, error, stackTrace) {
-                            return Icon(Icons.broken_image, size: 50); // Fallback image
-                          },
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            crossAxisAlignment: CrossAxisAlignment.start,
+              onChanged: (value) {
+                setState(() {
+                  leftHandAmount = value;
+                });
+              },
+            ),
+            const SizedBox(height: 16), // Space between TextField and GridView
+            Expanded(
+              child: GridView.builder(
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 1, // One item per row
+                  childAspectRatio: 2, // Adjust the height of the grid items
+                  mainAxisSpacing: 8.0,
+                  crossAxisSpacing: 8.0,
+                ),
+                itemCount: items.length,
+                itemBuilder: (context, index) {
+                  Map<String, dynamic> item = items[index];
+                  String deliveryTime = 'Unknown';
+                  double selectedRate = 0.0;
+
+                  if (item.containsKey('selectedExchangeRateValue')) {
+                    selectedRate = item['selectedExchangeRateValue'];
+                  }
+
+                  displayExchangeRateValue = selectedRate;
+                  if (baseCurrency == 'VND') {
+                    displayExchangeRateValue *= 100000;
+                  }
+
+                  return Card(
+                    elevation: 4,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.start,
+                            crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
-                              Text(
-                                'Exchange Rate: ${selectedRate.toStringAsFixed(10)}', // Display raw exchange rate
-                                style: Theme.of(context).textTheme.bodyText1, // Adjust style as needed
+                              Image.network(
+                                item['ImageURL'],
+                                height: 50,
+                                width: 50,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return Icon(Icons.broken_image, size: 50); // Fallback image
+                                },
                               ),
-                              Text(
-                                '$leftHandAmount $baseCurrency gets you ${formatExchangeRate(displayExchangeRateValue, quoteCurrency.toLowerCase())}',
-                                style: Theme.of(context).textTheme.bodyText2, // Adjust style as needed
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Exchange Rate: ${selectedRate.toStringAsFixed(10)}', // Display raw exchange rate
+                                      style: Theme.of(context).textTheme.bodyText1, // Adjust style as needed
+                                    ),
+                                    Text(
+                                      '$leftHandAmount $baseCurrency gets you ${formatExchangeRate(displayExchangeRateValue, quoteCurrency.toLowerCase())}',
+                                      style: Theme.of(context).textTheme.bodyText2, // Adjust style as needed
+                                    ),
+                                    Text(
+                                      'Username: ${item['userName']}',
+                                      style: Theme.of(context).textTheme.bodyText2,
+                                    ),
+                                    Text(
+                                      'Distance: ${(index + 1) * 10} km',
+                                      style: Theme.of(context).textTheme.bodyText2,
+                                    ),
+                                  ],
+                                ),
                               ),
-                              Text(
-                                'Username: ${item['userName']}',
-                                style: Theme.of(context).textTheme.bodyText2,
-                              ),
-                              Text(
-                                'Distance: ${(index + 1) * 10} km',
-                                style: Theme.of(context).textTheme.bodyText2,
+                              ElevatedButton(
+                                onPressed: () {},
+                                child: const Text('Button'),
                               ),
                             ],
                           ),
-                        ),
-                        ElevatedButton(
-                                       onPressed: () {},
-                          child: const Text('Button'),
-                        ),
-                      ],
-                    ),
-                    Container(
-                      width: double.infinity,
-                      color: Colors.deepPurple.withOpacity(0.1),
-                      padding: const EdgeInsets.all(8.0),
-                      child: Text(
-                        'Est. delivery time: $deliveryTime',
-                        style: Theme.of(context).textTheme.bodyText2?.copyWith(
-                              color: Colors.deepPurple,
+                          Container(
+                            width: double.infinity,
+                            color: Colors.deepPurple.withOpacity(0.1),
+                            padding: const EdgeInsets.all(8.0),
+                            child: Text(
+                                                        'Est. delivery time: $deliveryTime',
+                              style: Theme.of(context).textTheme.bodyText2?.copyWith(
+                                color: Colors.deepPurple,
+                              ),
+                              textAlign: TextAlign.center,
                             ),
-                        textAlign: TextAlign.center,
+                          ),
+                        ],
                       ),
                     ),
-                  ],
-                ),
+                  );
+                },
               ),
-            );
-          },
+            ),
+          ],
         ),
       ),
     );
