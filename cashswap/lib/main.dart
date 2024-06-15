@@ -16,6 +16,21 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
+        textTheme: TextTheme(
+          bodyText1: TextStyle(fontFamily: 'VolkswagenSerialXbold'),
+          bodyText2: TextStyle(fontFamily: 'VolkswagenSerialXbold'),
+          headline1: TextStyle(fontFamily: 'VolkswagenSerialXbold'),
+          headline2: TextStyle(fontFamily: 'VolkswagenSerialXbold'),
+          headline3: TextStyle(fontFamily: 'VolkswagenSerialXbold'),
+          headline4: TextStyle(fontFamily: 'VolkswagenSerialXbold'),
+          headline5: TextStyle(fontFamily: 'VolkswagenSerialXbold'),
+          headline6: TextStyle(fontFamily: 'VolkswagenSerialXbold'),
+          subtitle1: TextStyle(fontFamily: 'VolkswagenSerialXbold'),
+          subtitle2: TextStyle(fontFamily: 'VolkswagenSerialXbold'),
+          caption: TextStyle(fontFamily: 'VolkswagenSerialXbold'),
+          button: TextStyle(fontFamily: 'VolkswagenSerialXbold'),
+          overline: TextStyle(fontFamily: 'VolkswagenSerialXbold'),
+        ),
       ),
       home: const HomePage(),
     );

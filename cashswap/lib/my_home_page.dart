@@ -156,6 +156,14 @@ class _MyHomePageState extends State<MyHomePage> {
     return amountAfterCommission;
   }
 
+  String getCurrencySymbol() {
+    if (selectedCurrencyPair.isNotEmpty) {
+      String baseCurrency = selectedCurrencyPair.split('/')[0].trim().toLowerCase();
+      return currencySymbols[baseCurrency] ?? '';
+    }
+    return '';
+  }
+
   @override
   Widget build(BuildContext context) {
     String baseCurrency = '';
@@ -169,7 +177,7 @@ class _MyHomePageState extends State<MyHomePage> {
     }
 
     // Parse the amount entered by the user
-    double baseAmount = amountController.text.isEmpty ? (baseCurrency == 'VND' ? 100000 : 1) : double.parse(amountController.text.replaceAll(',', ''));
+    double baseAmount = amountController.text.isEmpty ? (baseCurrency == 'VND' ? 100000 : 1) : double.parse(amountController.text.replaceAll(RegExp(r'[^\d.]'), ''));
 
     // Calculate the display exchange rate value
     if (selectedCurrencyPair.isNotEmpty) {
@@ -224,6 +232,7 @@ class _MyHomePageState extends State<MyHomePage> {
                 FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')), // Allow only numbers, dot, and comma
               ],
               decoration: InputDecoration(
+                prefixText: getCurrencySymbol(), // Prepend currency symbol
                 hintText: 'Enter amount',
               ),
               onChanged: (value) {
@@ -239,7 +248,7 @@ class _MyHomePageState extends State<MyHomePage> {
               child: GridView.builder(
                 gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: 1, // One item per row
-                  childAspectRatio: 2, // Adjust the height of the grid items
+                                    childAspectRatio: 2, // Adjust the height of the grid items
                   mainAxisSpacing: 8.0,
                   crossAxisSpacing: 8.0,
                 ),
