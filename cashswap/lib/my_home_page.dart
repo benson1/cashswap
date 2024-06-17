@@ -248,7 +248,7 @@ class _MyHomePageState extends State<MyHomePage> {
               child: GridView.builder(
                 gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: 1, // One item per row
-                                    childAspectRatio: 2, // Adjust the height of the grid items
+                  childAspectRatio: 2, // Adjust the height of the grid items
                   mainAxisSpacing: 8.0,
                   crossAxisSpacing: 8.0,
                 ),
@@ -295,16 +295,20 @@ class _MyHomePageState extends State<MyHomePage> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
+                                      item['userName'],
+                                      style: Theme.of(context).textTheme.bodyText2?.copyWith(
+                                        color: Colors.lightBlue,
+                                      ), // Username with light blue color
+                                    ),
+                                    Text(
                                       'Exchange Rate: ${selectedRate.toStringAsFixed(10)}', // Display raw exchange rate
                                       style: Theme.of(context).textTheme.bodyText1, // Adjust style as needed
                                     ),
                                     Text(
                                       '$baseAmount $baseCurrency gets you ${formatExchangeRate(displayRateForItem, quoteCurrency.toLowerCase())}',
-                                      style: Theme.of(context).textTheme.bodyText2, // Adjust style as needed
-                                    ),
-                                    Text(
-                                      'Username: ${item['userName']}',
-                                      style: Theme.of(context).textTheme.bodyText2,
+                                      style: Theme.of(context).textTheme.bodyText2?.copyWith(
+                                        color: Color.fromARGB(255, 22, 56, 168),
+                                      ), // Adjust style as needed
                                     ),
                                     Text(
                                       'Distance: ${(index + 1) * 10} km',
@@ -361,4 +365,3 @@ void main() {
     home: MyHomePage(title: 'Exchange Rates'),
   ));
 }
-
