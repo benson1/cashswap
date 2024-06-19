@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
+import 'package:geolocator/geolocator.dart';
 
 class MyHomePage extends StatefulWidget {
   const MyHomePage({Key? key, required this.title, this.mockData}) : super(key: key);
@@ -29,10 +30,12 @@ class _MyHomePageState extends State<MyHomePage> {
   };
 
   TextEditingController amountController = TextEditingController();
+  Position? _currentPosition;
 
   @override
   void initState() {
     super.initState();
+    _getCurrentPosition(); // Get user's current position
     if (widget.mockData != null) {
       // Use mock data if provided
       items = widget.mockData!;
@@ -82,6 +85,41 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
+  Future<void> _getCurrentPosition() async {
+    bool serviceEnabled;
+    LocationPermission permission;
+
+    // Test if location services are enabled.
+    serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      return Future.error('Location services are disabled.');
+    }
+
+    permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        return Future.error('Location permissions are denied');
+      }
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      return Future.error('Location permissions are permanently denied, we cannot request permissions.');
+    }
+
+    try {
+      _currentPosition = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+      if (mounted) {
+        setState(() {
+          print('Current position: $_currentPosition');
+          processItems(); // Process items again with current position
+        });
+      }
+    } catch (e) {
+      print('Error obtaining current position: $e');
+    }
+  }
+
   void processItems() {
     // Extract unique currency pairs from items
     Set<String> pairs = Set();
@@ -97,6 +135,11 @@ class _MyHomePageState extends State<MyHomePage> {
 
     // Calculate and store exchange rates for all items
     updateSelectedExchangeRate();
+
+    // Calculate distances for all items
+    if (_currentPosition != null) {
+      calculateDistances();
+    }
   }
 
   void updateSelectedExchangeRate() {
@@ -124,6 +167,41 @@ class _MyHomePageState extends State<MyHomePage> {
       if (mounted) {
         setState(() {});
       }
+    }
+  }
+
+  void calculateDistances() {
+    if (_currentPosition == null) {
+      print('Current position is null, cannot calculate distances.');
+      return;
+    }
+
+    for (var item in items) {
+      if (item.containsKey('lattitude') && item.containsKey('longitude')) {
+        double itemLatitude = item['lattitude'];
+        double itemLongitude = item['longitude'];
+
+        double distanceInMeters = Geolocator.distanceBetween(
+          _currentPosition!.latitude,
+          _currentPosition!.longitude,
+          itemLatitude,
+          itemLongitude,
+        );
+
+        // Convert distance to kilometers
+        double distanceInKm = distanceInMeters / 1000;
+
+        // Store distance in the item
+        item['distance'] = distanceInKm;
+        print('Calculated distance for item: ${item['userName']} is $distanceInKm km');
+      } else {
+        print('Item does not have latitude and longitude: ${item['userName']}');
+      }
+    }
+
+    // Update the state to reflect changes
+    if (mounted) {
+      setState(() {});
     }
   }
 
@@ -257,6 +335,7 @@ class _MyHomePageState extends State<MyHomePage> {
                   Map<String, dynamic> item = items[index];
                   String deliveryTime = 'Unknown';
                   double selectedRate = 0.0;
+                  double distance = item.containsKey('distance') ? item['distance'] : 0.0;
 
                   if (item.containsKey('selectedExchangeRateValue')) {
                     selectedRate = item['selectedExchangeRateValue'];
@@ -311,7 +390,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                       ), // Adjust style as needed
                                     ),
                                     Text(
-                                      'Distance: ${(index + 1) * 10} km',
+                                      'Distance: ${distance.toStringAsFixed(2)} km',
                                       style: Theme.of(context).textTheme.bodyText2,
                                     ),
                                   ],

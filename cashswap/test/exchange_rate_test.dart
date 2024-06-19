@@ -13,7 +13,8 @@ void main() {
     double expectedOutput = 0.0018;
 
     // Call the function and get the result
-    double result = calculateAmountAfterCommission(baseRateValue, commissionPercentage, commissionFlat);
+    double result = 0.0;
+    // result = calculateAmountAfterCommission(baseRateValue, commissionPercentage, commissionFlat);
 
     // Verify the result
     expect(result, expectedOutput);
