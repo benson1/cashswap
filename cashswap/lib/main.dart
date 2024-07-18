@@ -1,7 +1,8 @@
-import 'package:cashswap/cash_delivery_page.dart';
 import 'package:flutter/material.dart';
+import 'cash_delivery_page.dart';
 import 'my_home_page.dart';
 import 'people_page.dart';
+import 'login_register_page.dart';
 
 void main() {
   runApp(const MyApp());
@@ -17,7 +18,7 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
-        textTheme: TextTheme(
+        textTheme: const TextTheme(
           bodyText1: TextStyle(fontFamily: 'VolkswagenSerialXbold'),
           bodyText2: TextStyle(fontFamily: 'VolkswagenSerialXbold'),
           headline1: TextStyle(fontFamily: 'VolkswagenSerialXbold'),
@@ -41,6 +42,13 @@ class MyApp extends StatelessWidget {
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
 
+  void _showLoginRegisterModal(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => const LoginRegisterPage(),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
@@ -62,6 +70,10 @@ class HomePage extends StatelessWidget {
             MyHomePage(title: 'Exchanges'),
             PeoplePage(),
           ],
+        ),
+        floatingActionButton: FloatingActionButton(
+          onPressed: () => _showLoginRegisterModal(context),
+          child: const Icon(Icons.login),
         ),
       ),
     );
