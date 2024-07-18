@@ -1,3 +1,4 @@
+import 'package:cashswap/cash_delivery_page.dart';
 import 'package:flutter/material.dart';
 import 'my_home_page.dart';
 import 'people_page.dart';
@@ -43,19 +44,21 @@ class HomePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 2,
+      length: 3,
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Flutter Demo'),
+          title: const Text('Quick Money'),
           bottom: const TabBar(
             tabs: [
-              Tab(text: 'Exchanges'),
+              Tab(text: 'Cash Delivery'),
+              Tab(text: 'Cash Exchanges'),
               Tab(text: 'People'),
             ],
           ),
         ),
         body: const TabBarView(
           children: [
+            CashDeliveryPage(),
             MyHomePage(title: 'Exchanges'),
             PeoplePage(),
           ],
