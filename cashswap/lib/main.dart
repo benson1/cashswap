@@ -39,14 +39,31 @@ class MyApp extends StatelessWidget {
   }
 }
 
-class HomePage extends StatelessWidget {
+class HomePage extends StatefulWidget {
   const HomePage({super.key});
+
+  @override
+  _HomePageState createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
+  bool _isLoggedIn = false;
 
   void _showLoginRegisterModal(BuildContext context) {
     showModalBottomSheet(
       context: context,
-      builder: (context) => const LoginRegisterPage(),
+      builder: (context) => LoginRegisterPage(onLogin: _handleLogin),
     );
+  }
+
+  void _handleLogin(bool isLoggedIn) {
+    setState(() {
+      _isLoggedIn = isLoggedIn;
+    });
+  }
+
+  void _navigateToProfile() {
+    // Handle navigation to the user's profile
   }
 
   @override
@@ -63,6 +80,13 @@ class HomePage extends StatelessWidget {
               Tab(text: 'People'),
             ],
           ),
+          actions: [
+            if (_isLoggedIn)
+              IconButton(
+                icon: const Icon(Icons.account_circle),
+                onPressed: _navigateToProfile,
+              ),
+          ],
         ),
         body: const TabBarView(
           children: [
@@ -71,10 +95,12 @@ class HomePage extends StatelessWidget {
             PeoplePage(),
           ],
         ),
-        floatingActionButton: FloatingActionButton(
-          onPressed: () => _showLoginRegisterModal(context),
-          child: const Icon(Icons.login),
-        ),
+        floatingActionButton: !_isLoggedIn
+            ? FloatingActionButton(
+                onPressed: () => _showLoginRegisterModal(context),
+                child: const Icon(Icons.login),
+              )
+            : null,
       ),
     );
   }

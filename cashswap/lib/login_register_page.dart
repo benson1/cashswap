@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 class LoginRegisterPage extends StatefulWidget {
-  const LoginRegisterPage({super.key});
+  final void Function(bool isLoggedIn) onLogin;
+
+  const LoginRegisterPage({super.key, required this.onLogin});
 
   @override
   _LoginRegisterPageState createState() => _LoginRegisterPageState();
@@ -14,6 +18,7 @@ class _LoginRegisterPageState extends State<LoginRegisterPage> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
   bool _isLogin = true;
+  bool _isLoading = false;
   String _selectedCountryCode = '+1';
 
   void _toggleForm() {
@@ -22,13 +27,90 @@ class _LoginRegisterPageState extends State<LoginRegisterPage> {
     });
   }
 
-  void _submit() {
+  Future<void> _submit() async {
     final username = _usernameController.text;
     final password = _passwordController.text;
 
     if (_isLogin) {
       // Perform login request
-      print('Logging in with username: $username, password: $password');
+      setState(() {
+        _isLoading = true;
+      });
+
+      try {
+        final response = await http.post(
+          Uri.parse('http://10.0.2.2:3000/login'),
+          headers: <String, String>{
+            'Content-Type': 'application/json; charset=UTF-8',
+          },
+          body: jsonEncode(<String, String>{
+            'username': username,
+            'password': password,
+          }),
+        );
+
+        final responseBody = response.body;
+        if (response.statusCode == 200) {
+          // Notify parent that the user is logged in
+          widget.onLogin(true);
+
+          // Handle successful login
+          showDialog(
+            context: context,
+            builder: (BuildContext context) {
+              return AlertDialog(
+                title: Text('Login Successful'),
+                content: Text('You are now logged in.'),
+                actions: [
+                  TextButton(
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                      // Optionally, navigate to another page
+                    },
+                    child: Text('OK'),
+                  ),
+                ],
+              );
+            },
+          );
+        } else {
+          // Attempt to parse the response as JSON
+          String errorMessage = 'Login failed';
+          try {
+            final responseData = jsonDecode(responseBody);
+            errorMessage = responseData['message'] ?? errorMessage;
+          } catch (e) {
+            // If JSON parsing fails, use the raw response body
+            errorMessage = responseBody;
+          }
+
+          showDialog(
+            context: context,
+            builder: (BuildContext context) {
+              return AlertDialog(
+                title: Text('Login Failed'),
+                content: Text(errorMessage.contains('email not verified')
+                    ? 'Your email is not verified. Please check your email for verification instructions.'
+                    : errorMessage),
+                actions: [
+                  TextButton(
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                    },
+                    child: Text('OK'),
+                  ),
+                ],
+              );
+            },
+          );
+        }
+      } catch (error) {
+        print('Error logging in: $error');
+      } finally {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     } else {
       final email = _emailController.text;
       final phone = '$_selectedCountryCode${_phoneController.text}';
@@ -40,8 +122,60 @@ class _LoginRegisterPageState extends State<LoginRegisterPage> {
         return;
       }
 
-      // Perform registration request
-      print('Registering with username: $username, password: $password, email: $email, phone: $phone');
+      // Show loading indicator
+      setState(() {
+        _isLoading = true;
+      });
+
+      try {
+        // Perform registration request
+        final response = await http.post(
+          Uri.parse('http://10.0.2.2:3000/register'),
+          headers: <String, String>{
+            'Content-Type': 'application/json; charset=UTF-8',
+          },
+          body: jsonEncode(<String, String>{
+            'username': username,
+            'password': password,
+            'email': email,
+            'phoneNumber': phone,
+          }),
+        );
+
+        if (response.statusCode == 200) {
+          final responseData = jsonDecode(response.body);
+          final userId = responseData['id'];
+
+          // Inform user to check their email
+          showDialog(
+            context: context,
+            builder: (BuildContext context) {
+              return AlertDialog(
+                title: Text('Registration Successful'),
+                content: Text('Please check your email to verify your account.'),
+                actions: [
+                  TextButton(
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                      // Optionally, navigate to the login page or any other page
+                    },
+                    child: Text('OK'),
+                  ),
+                ],
+              );
+            },
+          );
+        } else {
+          print('Failed to register user: ${response.body}');
+        }
+      } catch (error) {
+        print('Error registering user: $error');
+      } finally {
+        // Hide loading indicator
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -99,10 +233,12 @@ class _LoginRegisterPageState extends State<LoginRegisterPage> {
             ),
           ],
           const SizedBox(height: 20),
-          ElevatedButton(
-            onPressed: _submit,
-            child: Text(_isLogin ? 'Login' : 'Register'),
-          ),
+          _isLoading
+              ? CircularProgressIndicator()
+              : ElevatedButton(
+                  onPressed: _submit,
+                  child: Text(_isLogin ? 'Login' : 'Register'),
+                ),
           TextButton(
             onPressed: _toggleForm,
             child: Text(_isLogin ? 'Don\'t have an account? Register' : 'Already have an account? Login'),
