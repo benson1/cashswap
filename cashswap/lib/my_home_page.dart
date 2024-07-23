@@ -335,7 +335,8 @@ class _MyHomePageState extends State<MyHomePage> {
                   Map<String, dynamic> item = items[index];
                   String deliveryTime = 'Unknown';
                   double selectedRate = 0.0;
-                  double distance = item.containsKey('distance') ? item['distance'] : 0.0;
+                  // double distance = item.containsKey('distance') ? item['distance'] : 0.0;
+                  double distance = 0.0;
 
                   if (item.containsKey('selectedExchangeRateValue')) {
                     selectedRate = item['selectedExchangeRateValue'];
