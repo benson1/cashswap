@@ -27,23 +27,25 @@ class _CashDeliveryPageState extends State<CashDeliveryPage> {
     _fetchLocationAndExchanges();
   }
 
-  Future<void> _fetchLocationAndExchanges() async {
-    Position position;
-    try {
-      position = await _determinePosition();
-    } catch (e) {
+Future<void> _fetchLocationAndExchanges() async {
+  Position position;
+  try {
+    position = await _determinePosition();
+  } catch (e) {
+    if (mounted) {
       setState(() {
         hasExchanges = false;
       });
-      return;
     }
+    return;
+  }
 
-    //final url = 'http://10.0.2.2:3000/exchanges?longitude=${position.longitude}&latitude=${position.latitude}';
-    final url = 'http://10.0.2.2:3000/exchanges?longitude=98.984400&latitude=18.789660';
-    final response = await http.get(Uri.parse(url));
+  final url = 'http://10.0.2.2:3000/exchanges?longitude=${position.longitude}&latitude=${position.latitude}';
+  final response = await http.get(Uri.parse(url));
 
-    if (response.statusCode == 200) {
-      List<dynamic> data = json.decode(response.body);
+  if (response.statusCode == 200) {
+    List<dynamic> data = json.decode(response.body);
+    if (mounted) {
       setState(() {
         if (data.isEmpty) {
           hasExchanges = false;
@@ -54,12 +56,16 @@ class _CashDeliveryPageState extends State<CashDeliveryPage> {
           availableCurrencies = _getAvailableCurrencies();
         }
       });
-    } else {
+    }
+  } else {
+    if (mounted) {
       setState(() {
         hasExchanges = false;
       });
     }
   }
+}
+
 
   List<String> _getAvailableCurrencies() {
     Set<String> currencies = {};
