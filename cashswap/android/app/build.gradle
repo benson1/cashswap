@@ -42,7 +42,7 @@ android {
 
     defaultConfig {
         applicationId "com.example.cashswap"
-        minSdkVersion flutter.minSdkVersion
+        minSdkVersion 20 // Update this line
         targetSdkVersion 34
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'address_lookup.dart'; // Import the address lookup component
 import 'package:flutter/services.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
@@ -13,6 +14,7 @@ class CashDeliveryPage extends StatefulWidget {
 
 class _CashDeliveryPageState extends State<CashDeliveryPage> {
   final TextEditingController _payController = TextEditingController();
+  final TextEditingController _manualAddressController = TextEditingController();
   String _payCurrency = 'USD';
   String _receiveCurrency = 'EUR';
   String _paymentMethod = 'Visa/Mastercard';
@@ -20,6 +22,7 @@ class _CashDeliveryPageState extends State<CashDeliveryPage> {
   List<dynamic> exchanges = [];
   bool hasExchanges = true;
   List<String> availableCurrencies = ['USD', 'EUR', 'GBP', 'JPY'];
+  bool _isManualAddressMode = false;
 
   @override
   void initState() {
@@ -27,45 +30,80 @@ class _CashDeliveryPageState extends State<CashDeliveryPage> {
     _fetchLocationAndExchanges();
   }
 
-Future<void> _fetchLocationAndExchanges() async {
-  Position position;
-  try {
-    position = await _determinePosition();
-  } catch (e) {
-    if (mounted) {
-      setState(() {
-        hasExchanges = false;
-      });
-    }
-    return;
-  }
-
-  final url = 'http://10.0.2.2:3000/exchanges?longitude=${position.longitude}&latitude=${position.latitude}';
-  final response = await http.get(Uri.parse(url));
-
-  if (response.statusCode == 200) {
-    List<dynamic> data = json.decode(response.body);
-    if (mounted) {
-      setState(() {
-        if (data.isEmpty) {
+  Future<void> _fetchLocationAndExchanges() async {
+    Position position;
+    try {
+      position = await _determinePosition();
+    } catch (e) {
+      if (mounted) {
+        setState(() {
           hasExchanges = false;
-        } else {
-          exchanges = data;
-          _payCurrency = exchanges[0]['exchangeRates'][0]['base_currency_name'].toUpperCase();
-          _receiveCurrency = exchanges[0]['exchangeRates'][0]['quote_currency_name'].toUpperCase();
-          availableCurrencies = _getAvailableCurrencies();
-        }
-      });
+          _isManualAddressMode = true;
+        });
+      }
+      return;
     }
-  } else {
-    if (mounted) {
-      setState(() {
-        hasExchanges = false;
-      });
+
+    final url = 'http://10.0.2.2:3000/exchanges?longitude=${position.longitude}&latitude=${position.latitude}';
+    final response = await http.get(Uri.parse(url));
+
+    if (response.statusCode == 200) {
+      List<dynamic> data = json.decode(response.body);
+      if (mounted) {
+        setState(() {
+          if (data.isEmpty) {
+            hasExchanges = false;
+            _isManualAddressMode = true;
+          } else {
+            exchanges = data;
+            _payCurrency = exchanges[0]['exchangeRates'][0]['base_currency_name'].toUpperCase();
+            _receiveCurrency = exchanges[0]['exchangeRates'][0]['quote_currency_name'].toUpperCase();
+            availableCurrencies = _getAvailableCurrencies();
+          }
+        });
+      }
+    } else {
+      if (mounted) {
+        setState(() {
+          hasExchanges = false;
+          _isManualAddressMode = true;
+        });
+      }
     }
   }
-}
 
+  Future<void> _fetchExchangesForManualAddress(String address) async {
+    // Convert address to coordinates (you should implement this conversion)
+    final latitude = 22.263460; // Replace with actual latitude
+    final longitude = 113.683838; // Replace with actual longitude
+
+    final url = 'http://10.0.2.2:3000/exchanges?longitude=$longitude&latitude=$latitude';
+    final response = await http.get(Uri.parse(url));
+
+    if (response.statusCode == 200) {
+      List<dynamic> data = json.decode(response.body);
+      if (mounted) {
+        setState(() {
+          if (data.isEmpty) {
+            hasExchanges = false;
+          } else {
+            exchanges = data;
+            _payCurrency = exchanges[0]['exchangeRates'][0]['base_currency_name'].toUpperCase();
+            _receiveCurrency = exchanges[0]['exchangeRates'][0]['quote_currency_name'].toUpperCase();
+            availableCurrencies = _getAvailableCurrencies();
+            hasExchanges = true;
+            _isManualAddressMode = false;
+          }
+        });
+      }
+    } else {
+      if (mounted) {
+        setState(() {
+          hasExchanges = false;
+        });
+      }
+    }
+  }
 
   List<String> _getAvailableCurrencies() {
     Set<String> currencies = {};
@@ -118,94 +156,102 @@ Future<void> _fetchLocationAndExchanges() async {
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: hasExchanges
-            ? Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: _payController,
-                          keyboardType: TextInputType.numberWithOptions(decimal: true),
-                          decoration: InputDecoration(
-                            labelText: 'You Pay',
-                            prefixText: _payCurrency + ' ',
+            ? SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: _payController,
+                            keyboardType: TextInputType.numberWithOptions(decimal: true),
+                            decoration: InputDecoration(
+                              labelText: 'You Pay',
+                              prefixText: _payCurrency + ' ',
+                            ),
+                            onChanged: (value) {
+                              _calculateReceiveAmount();
+                            },
                           ),
-                          onChanged: (value) {
-                            _calculateReceiveAmount();
+                        ),
+                        SizedBox(width: 10),
+                        DropdownButton<String>(
+                          value: availableCurrencies.contains(_payCurrency) ? _payCurrency : null,
+                          items: availableCurrencies.map((String value) {
+                            return DropdownMenuItem<String>(
+                              value: value,
+                              child: Text(value),
+                            );
+                          }).toList(),
+                          onChanged: (String? newValue) {
+                            setState(() {
+                              _payCurrency = newValue!;
+                              _calculateReceiveAmount();
+                            });
                           },
                         ),
-                      ),
-                      SizedBox(width: 10),
-                      DropdownButton<String>(
-                        value: availableCurrencies.contains(_payCurrency) ? _payCurrency : null,
-                        items: availableCurrencies.map((String value) {
-                          return DropdownMenuItem<String>(
-                            value: value,
-                            child: Text(value),
-                          );
-                        }).toList(),
-                        onChanged: (String? newValue) {
-                          setState(() {
-                            _payCurrency = newValue!;
-                            _calculateReceiveAmount();
-                          });
-                        },
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: 20),
-                  DropdownButtonFormField<String>(
-                    value: _paymentMethod,
-                    items: <String>['Visa/Mastercard', 'Google Pay', 'Apple Pay'].map((String value) {
-                      return DropdownMenuItem<String>(
-                        value: value,
-                        child: Text(value),
-                      );
-                    }).toList(),
-                    onChanged: (String? newValue) {
-                      setState(() {
-                        _paymentMethod = newValue!;
-                      });
-                    },
-                    decoration: InputDecoration(
-                      labelText: 'Payment Method',
+                      ],
                     ),
-                  ),
-                  SizedBox(height: 20),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Container(
-                          padding: EdgeInsets.all(12.0),
-                          decoration: BoxDecoration(
-                            border: Border.all(color: Colors.grey),
-                            borderRadius: BorderRadius.circular(4.0),
-                          ),
-                          child: Text(
-                            'You Receive: ${_receiveAmount.toStringAsFixed(2)}',
-                            style: TextStyle(fontSize: 16.0),
+                    SizedBox(height: 20),
+                    DropdownButtonFormField<String>(
+                      value: _paymentMethod,
+                      items: <String>['Visa/Mastercard', 'Google Pay', 'Apple Pay'].map((String value) {
+                        return DropdownMenuItem<String>(
+                          value: value,
+                          child: Text(value),
+                        );
+                      }).toList(),
+                      onChanged: (String? newValue) {
+                        setState(() {
+                          _paymentMethod = newValue!;
+                        });
+                      },
+                      decoration: InputDecoration(
+                        labelText: 'Payment Method',
+                      ),
+                    ),
+                    SizedBox(height: 20),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Container(
+                            padding: EdgeInsets.all(12.0),
+                            decoration: BoxDecoration(
+                              border: Border.all(color: Colors.grey),
+                              borderRadius: BorderRadius.circular(4.0),
+                            ),
+                            child: Text(
+                              'You Receive: ${_receiveAmount.toStringAsFixed(2)}',
+                              style: TextStyle(fontSize: 16.0),
+                            ),
                           ),
                         ),
-                      ),
-                      SizedBox(width: 10),
-                      DropdownButton<String>(
-                        value: availableCurrencies.contains(_receiveCurrency) ? _receiveCurrency : null,
-                        items: availableCurrencies.map((String value) {
-                          return DropdownMenuItem<String>(
-                            value: value,
-                            child: Text(value),
-                          );
-                        }).toList(),
-                        onChanged: (String? newValue) {
-                          setState(() {
-                            _receiveCurrency = newValue!;
-                          });
-                        },
-                      ),
-                    ],
-                  ),
-                ],
+                        SizedBox(width: 10),
+                        DropdownButton<String>(
+                          value: availableCurrencies.contains(_receiveCurrency) ? _receiveCurrency : null,
+                          items: availableCurrencies.map((String value) {
+                            return DropdownMenuItem<String>(
+                              value: value,
+                              child: Text(value),
+                            );
+                          }).toList(),
+                          onChanged: (String? newValue) {
+                            setState(() {
+                              _receiveCurrency = newValue!;
+                            });
+                          },
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 20),
+                    AddressLookup(
+                      onAddressSelected: (address) {
+                        _fetchExchangesForManualAddress(address);
+                      },
+                    ),
+                  ],
+                ),
               )
             : Center(
                 child: Text('No exchanges available for your location'),
