@@ -33,21 +33,20 @@ class _AddressLookupState extends State<AddressLookup> {
       final url = 'https://maps.googleapis.com/maps/api/place/autocomplete/json?input=$value&key=$_apiKey';
       final response = await http.get(Uri.parse(url));
 
+      print('Autocomplete API response: ${response.body}'); // Log the response
+
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         setState(() {
           _predictions = data['predictions'];
         });
       } else {
-        // Handle response errors
-        print('Error: ${response.statusCode}');
         setState(() {
           _predictions = [];
         });
       }
     } catch (e) {
-      // Handle network or parsing errors
-      print('Exception: $e');
+      print('Error fetching predictions: $e'); // Log any errors
       setState(() {
         _predictions = [];
       });
@@ -63,17 +62,15 @@ class _AddressLookupState extends State<AddressLookup> {
       final url = 'https://maps.googleapis.com/maps/api/place/details/json?place_id=$placeId&key=$_apiKey';
       final response = await http.get(Uri.parse(url));
 
+      print('Place Details API response: ${response.body}'); // Log the response
+
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         final address = data['result']['formatted_address'];
         widget.onAddressSelected(address);
-      } else {
-        // Handle response errors
-        print('Error: ${response.statusCode}');
       }
     } catch (e) {
-      // Handle network or parsing errors
-      print('Exception: $e');
+      print('Error fetching place details: $e'); // Log any errors
     }
   }
 
@@ -89,9 +86,7 @@ class _AddressLookupState extends State<AddressLookup> {
               controller: _controller,
               decoration: InputDecoration(
                 labelText: 'Enter Address',
-                suffixIcon: _isLoading
-                    ? CircularProgressIndicator()
-                    : Icon(Icons.search),
+                suffixIcon: _isLoading ? CircularProgressIndicator() : Icon(Icons.search),
               ),
               onChanged: _onSearchChanged,
             ),

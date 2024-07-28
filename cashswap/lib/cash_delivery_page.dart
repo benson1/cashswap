@@ -4,6 +4,8 @@ import 'package:flutter/services.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:geolocator/geolocator.dart';
+import 'package:flutter/foundation.dart';
+
 
 class CashDeliveryPage extends StatefulWidget {
   const CashDeliveryPage({super.key});
@@ -43,8 +45,11 @@ class _CashDeliveryPageState extends State<CashDeliveryPage> {
       }
       return;
     }
+  final latitude = 18.789660; // Replace with actual latitude
+    final longitude = 98.984400; // Replace with actual longitude
+    final url = 'http://10.0.2.2:3000/exchanges?longitude=${longitude}&latitude=${latitude}';
+    //final url = 'http://10.0.2.2:3000/exchanges?longitude=${position.longitude}&latitude=${position.latitude}';
 
-    final url = 'http://10.0.2.2:3000/exchanges?longitude=${position.longitude}&latitude=${position.latitude}';
     final response = await http.get(Uri.parse(url));
 
     if (response.statusCode == 200) {
@@ -74,8 +79,8 @@ class _CashDeliveryPageState extends State<CashDeliveryPage> {
 
   Future<void> _fetchExchangesForManualAddress(String address) async {
     // Convert address to coordinates (you should implement this conversion)
-    final latitude = 22.263460; // Replace with actual latitude
-    final longitude = 113.683838; // Replace with actual longitude
+    final latitude = 18.789660; // Replace with actual latitude
+    final longitude = 98.984400; // Replace with actual longitude
 
     final url = 'http://10.0.2.2:3000/exchanges?longitude=$longitude&latitude=$latitude';
     final response = await http.get(Uri.parse(url));
