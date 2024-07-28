@@ -30,7 +30,8 @@ class _AddressLookupState extends State<AddressLookup> {
     });
 
     try {
-      final url = 'https://maps.googleapis.com/maps/api/place/autocomplete/json?input=$value&key=$_apiKey';
+      final url =
+          'https://maps.googleapis.com/maps/api/place/autocomplete/json?input=$value&key=$_apiKey';
       final response = await http.get(Uri.parse(url));
 
       print('Autocomplete API response: ${response.body}'); // Log the response
@@ -57,23 +58,28 @@ class _AddressLookupState extends State<AddressLookup> {
     }
   }
 
-  void _onPredictionSelected(String placeId) async {
-    try {
-      final url = 'https://maps.googleapis.com/maps/api/place/details/json?place_id=$placeId&key=$_apiKey';
-      final response = await http.get(Uri.parse(url));
+void _onPredictionSelected(String placeId) async {
+  try {
+    final url =
+        'https://maps.googleapis.com/maps/api/place/details/json?place_id=$placeId&key=$_apiKey';
+    final response = await http.get(Uri.parse(url));
 
-      print('Place Details API response: ${response.body}'); // Log the response
+    print('Place Details API response: ${response.body}'); // Log the response
 
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        final address = data['result']['formatted_address'];
-        widget.onAddressSelected(address);
-      }
-    } catch (e) {
-      print('Error fetching place details: $e'); // Log any errors
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      final address = data['result']['formatted_address'];
+
+      setState(() {
+        _controller.text = address;
+      });
+
+      widget.onAddressSelected(address);
     }
+  } catch (e) {
+    print('Error fetching place details: $e'); // Log any errors
   }
-
+}
   @override
   Widget build(BuildContext context) {
     return SizedBox(
